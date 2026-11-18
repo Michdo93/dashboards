@@ -1,0 +1,3457 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Home Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Bootstrap nur für Komponenten (Toasts, Offcanvas, Dropdowns) - unser eigenes Card/Button-Design bleibt bestehen -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+      :root {
+        --bg-color: #0f172a;
+        --card-bg: rgba(30, 41, 59, 0.7);
+        --card-border: rgba(255, 255, 255, 0.1);
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent: #38bdf8;
+        --accent-hover: #0284c7;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --success: #22c55e;
+        --topbar-height: 52px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* Top-Leiste (ehemals Sidebar links) - ganz schmal, für Tablet "alle Räume" */
+      #topbar {
+        height: var(--topbar-height);
+        flex-shrink: 0;
+        background: rgba(15, 23, 42, 0.95);
+        border-bottom: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 12px;
+        z-index: 100;
+        overflow-x: auto;
+        scrollbar-width: thin;
+      }
+
+      .brand {
+        font-size: 0.95rem;
+        font-weight: bold;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-right: 12px;
+        margin-right: 8px;
+        border-right: 1px solid var(--card-border);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        height: 100%;
+      }
+
+      .nav-links a {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 14px;
+        height: 100%;
+        color: var(--text-muted);
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s ease;
+      }
+
+      .nav-links a:hover,
+      .nav-links a.active {
+        color: var(--text-main);
+        background: rgba(56, 189, 248, 0.1);
+        border-bottom-color: var(--accent);
+      }
+
+      /* Main Content Area */
+      #main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+      }
+
+      header {
+        height: 60px;
+        border-bottom: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 30px;
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(10px);
+        position: sticky;
+        top: 0;
+        z-index: 90;
+      }
+
+      .status-bar {
+        display: flex;
+        gap: 15px;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        flex-wrap: wrap;
+      }
+
+      .status-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--card-border);
+      }
+
+      /* Tab Views */
+      .tab-content {
+        display: none;
+        padding: 25px;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+      }
+
+      .tab-content.active {
+        display: grid;
+      }
+
+      /* Cards & Widgets */
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        padding: 18px;
+        backdrop-filter: blur(10px);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .card.wide {
+        grid-column: span 2;
+      }
+
+      @media (max-width: 1024px) {
+        .card.wide {
+          grid-column: span 1;
+        }
+      }
+
+      .card-title {
+        font-size: 1.05rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--accent);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 8px;
+      }
+
+      /* Controls & Buttons */
+      .btn-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+        gap: 8px;
+      }
+
+      .btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--card-border);
+        color: var(--text-main);
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        text-align: center;
+      }
+
+      .btn:hover {
+        background: var(--accent);
+        color: #000;
+      }
+
+      .btn.active {
+        background: var(--accent);
+        color: #000;
+        font-weight: bold;
+      }
+
+      .btn-sm {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+      }
+
+      /* Sliders & Toggles */
+      .control-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .toggle-switch {
+        position: relative;
+        width: 44px;
+        height: 22px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 11px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      .toggle-switch.active {
+        background: var(--success);
+      }
+
+      .toggle-switch::after {
+        content: '';
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: white;
+        top: 2px;
+        left: 2px;
+        transition: left 0.3s;
+      }
+
+      .toggle-switch.active::after {
+        left: 24px;
+      }
+
+      .slider-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        min-width: 0;
+      }
+
+      .slider-container input[type="range"] {
+        flex: 1;
+        min-width: 0;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+
+      /* Der Prozent-Anzeige neben einem Slider ist immer kurz ("45%", "--%") und
+         darf nie zusammengequetscht/abgeschnitten werden wie normale Textwerte. */
+      .slider-container .data-value {
+        flex-shrink: 0;
+        overflow: visible;
+        text-overflow: clip;
+      }
+
+      /* Lists & Tables */
+      .data-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .data-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.85rem;
+        gap: 12px;
+      }
+
+      .data-row:last-child {
+        border-bottom: none;
+      }
+
+      .data-label {
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+
+      .data-value {
+        color: var(--text-muted);
+        font-weight: 600;
+        text-align: right;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+      }
+
+      /* Badges */
+      .badge-alert {
+        background: rgba(239, 68, 68, 0.2);
+        color: var(--danger);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+      }
+
+      .badge-warning {
+        background: rgba(245, 158, 11, 0.2);
+        color: var(--warning);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+      }
+
+      .badge-ok {
+        background: rgba(34, 197, 94, 0.2);
+        color: var(--success);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+      }
+
+      /* Weather Forecast Grid */
+      .forecast-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+        gap: 6px;
+        text-align: center;
+      }
+
+      .forecast-item {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 6px 4px;
+        border-radius: 6px;
+        border: 1px solid var(--card-border);
+        font-size: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      /* Color Picker Canvas Wrapper */
+      .color-picker-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      /* Runde Icon-Buttons für Rollläden/Jalousien (Auf/Stopp/Ab) und
+       Medien-Transport (Play/Pause/Weiter/Stumm/Vor-/Zurückspulen) */
+      .btn-icon-round {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+      }
+
+      .btn-icon-round.btn-sm {
+        width: 34px;
+        height: 34px;
+        font-size: 0.85rem;
+      }
+
+      .transport-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      /* Interaktiver Farbkreis (HSB) - analog zur openHAB-Sitemap-Farbauswahl */
+      .colorwheel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0;
+      }
+
+      .colorwheel-canvas-wrap {
+        position: relative;
+        width: 140px;
+        height: 140px;
+      }
+
+      .colorwheel-canvas {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        cursor: crosshair;
+        display: block;
+        touch-action: none;
+        box-shadow: 0 0 0 1px var(--card-border);
+      }
+
+      .colorwheel-thumb {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.6);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+
+      .colorwheel-brightness {
+        width: 140px;
+        height: 14px;
+        border-radius: 7px;
+        appearance: none;
+        -webkit-appearance: none;
+        cursor: pointer;
+        background: linear-gradient(to right, #000, #fff);
+        outline: none;
+      }
+
+      .colorwheel-brightness::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid #333;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      }
+
+      .colorwheel-brightness::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid #333;
+      }
+
+      /* WebTV Scroll Container */
+      .webtv-container {
+        max-height: 180px;
+        overflow-y: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding-right: 4px;
+      }
+
+      /* Kiosk-Modus (?kiosk=on): Tablet läuft im Vollbild/Browser-Kiosk,
+       das Menü bleibt sichtbar -> das ist das Tablet "für alle Räume" */
+      body.kiosk-mode {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      body.kiosk-mode * {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Raum-Sperre (?raum=kueche|bad|iot|multimedia): eigenes Tablet für
+       genau einen Raum -> Menü + Kopfzeile komplett ausblenden, kein Wechsel möglich */
+      body.room-locked #topbar,
+      body.room-locked header {
+        display: none !important;
+      }
+
+      body.room-locked #main-content {
+        height: 100vh;
+      }
+
+      body.room-locked .tab-content.active {
+        padding-top: 25px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top-Navigation (schmale Leiste). Auf Raum-Tablets (?raum=...) wird sie per CSS komplett ausgeblendet. -->
+    <nav id="topbar">
+      <div class="brand">
+        <i class="fa-solid fa-house-signal"></i>
+        <span>Smart Home</span>
+      </div>
+      <div class="nav-links">
+        <a href="#smarthome" class="nav-btn active" data-tab="smarthome" data-label="Smarthome">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Smarthome</span>
+        </a>
+        <a href="#konferenz" class="nav-btn" data-tab="konferenz" data-label="Konferenz">
+          <i class="fa-solid fa-display"></i>
+          <span>Konferenz</span>
+        </a>
+        <a href="#kueche" class="nav-btn" data-tab="kueche" data-label="Küche">
+          <i class="fa-solid fa-utensils"></i>
+          <span>Küche</span>
+        </a>
+        <a href="#bad" class="nav-btn" data-tab="bad" data-label="Bad">
+          <i class="fa-solid fa-bath"></i>
+          <span>Bad</span>
+        </a>
+        <a href="#iot" class="nav-btn" data-tab="iot" data-label="IoT">
+          <i class="fa-solid fa-network-wired"></i>
+          <span>IoT</span>
+        </a>
+        <a href="#multimedia" class="nav-btn" data-tab="multimedia" data-label="Multimedia">
+          <i class="fa-solid fa-film"></i>
+          <span>Multimedia</span>
+        </a>
+      </div>
+    </nav>
+    <!-- Main Content Area -->
+    <div id="main-content">
+      <header>
+        <h2 id="page-title">Smarthome Überblick</h2>
+        <div class="status-bar">
+          <div class="status-item">
+            <i class="fa-solid fa-clock"></i>
+            <span id="clock-display">12:00</span>
+          </div>
+          <div class="status-item">
+            <i class="fa-solid fa-lock"></i> Schloss 1: <span class="badge-ok" data-oh-item="iKonferenz_DanaLock_Tuerschloss_Schloss" data-oh-map="ON:Gesperrt,OFF:Offen" data-oh-ok-value="ON">Gesperrt</span>
+          </div>
+          <div class="status-item">
+            <i class="fa-solid fa-lock"></i> Schloss 2: <span class="badge-ok" data-oh-item="iKonferenz_DanaLock_Tuerschloss_Schloss_2" data-oh-map="ON:Gesperrt,OFF:Offen" data-oh-ok-value="ON">Gesperrt</span>
+          </div>
+          <div class="status-item">
+            <i class="fa-solid fa-door-open"></i> Tür: <span class="badge-ok" data-oh-item="iKonferenz_Fibaro_Tuersensor_Kontakt1" data-oh-map="CLOSED:Zu,OPEN:Offen" data-oh-ok-value="CLOSED">Zu</span>
+          </div>
+          <div class="status-item">
+            <i class="fa-solid fa-bell"></i>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Homematic_Gong_Position1" data-oh-command="ON">Gong 🔔</button>
+          </div>
+        </div>
+      </header>
+      <!-- TAB: SMARTHOME (ÜBERBLICK) -->
+      <div id="tab-smarthome" class="tab-content active">
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-circle-info"></i> Systemübersicht
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.9rem;"> Willkommen im Smart Home Cockpit. Diese Seite bündelt die globalen/hausweiten Gruppen-Items. Alle Werte kommen live über <code>openhab.js</code> von deiner openHAB-Instanz (siehe <code>config.js</code>). </p>
+        </div>
+        <!-- Fensterstatus Konferenz -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-window-restore"></i> Fensterstatus (Konferenzraum)
+          </div>
+          <div class="btn-grid">
+            <div class="btn">
+              <span style="font-size: 0.7rem; color: var(--text-muted)">Fenster 1</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Homematic_Fenster1_Position" data-oh-map="OPEN:Offen,TILTED:Gekippt,CLOSED:Zu" data-oh-badge-map="OPEN:badge-alert,TILTED:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+            <div class="btn">
+              <span style="font-size: 0.7rem; color: var(--text-muted)">Fenster 2</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Homematic_Fenster2_Position" data-oh-map="OPEN:Offen,TILTED:Gekippt,CLOSED:Zu" data-oh-badge-map="OPEN:badge-alert,TILTED:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+            <div class="btn">
+              <span style="font-size: 0.7rem; color: var(--text-muted)">Fenster 3</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Homematic_Fenster3_Position" data-oh-map="OPEN:Offen,TILTED:Gekippt,CLOSED:Zu" data-oh-badge-map="OPEN:badge-alert,TILTED:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+            <div class="btn">
+              <span style="font-size: 0.7rem; color: var(--text-muted)">Fenster 4</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Homematic_Fenster4_Position" data-oh-map="OPEN:Offen,TILTED:Gekippt,CLOSED:Zu" data-oh-badge-map="OPEN:badge-alert,TILTED:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+            <div class="btn">
+              <span style="font-size: 0.7rem; color: var(--text-muted)">Fenster 5</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Homematic_Fenster5_Position" data-oh-map="OPEN:Offen,TILTED:Gekippt,CLOSED:Zu" data-oh-badge-map="OPEN:badge-alert,TILTED:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+            <div class="btn">
+              <span style="font-size: 0.7rem; color: var(--text-muted)">Fenster 6</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Homematic_Fenster6_Position" data-oh-map="OPEN:Offen,TILTED:Gekippt,CLOSED:Zu" data-oh-badge-map="OPEN:badge-alert,TILTED:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+          </div>
+          <p style="font-size:0.7rem; color:var(--text-muted); margin-top:6px;">Fenster im Konferenzraum - <code>gSmartHome_Fensterposition</code> ist aktuell eine leere Gruppe, hierher gehören die Fenster-Items, sobald sie einsortiert sind. </p>
+        </div>
+        <!-- Rollläden (Global) -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-blinds-raised"></i> Somfy Rollläden (Global)
+          </div>
+          <div class="transport-row">
+            <button class="btn btn-icon-round" data-oh-item="iSmartHome_Somfy_Rollladen_Steuerung" data-oh-command="UP" title="Auf">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn btn-icon-round" data-oh-item="iSmartHome_Somfy_Rollladen_Steuerung" data-oh-command="STOP" title="Stopp">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-icon-round" data-oh-item="iSmartHome_Somfy_Rollladen_Steuerung" data-oh-command="DOWN" title="Ab">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+          <div class="control-row" style="margin-top:8px;">
+            <span class="data-label">Position:</span>
+            <div class="slider-container">
+              <input type="range" min="0" max="100" value="0" data-oh-item="iSmartHome_Somfy_Rollladen_Steuerung" data-oh-type="rollershutter" data-oh-display="disp-rollladen-pos">
+              <span class="data-value" id="disp-rollladen-pos">--%</span>
+            </div>
+          </div>
+        </div>
+        <!-- Jalousien (Global) -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-blinds"></i> Somfy Jalousien (Global)
+          </div>
+          <div class="transport-row">
+            <button class="btn btn-icon-round" data-oh-item="iSmartHome_Jalousie_Steuerung" data-oh-command="UP" title="Auf">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn btn-icon-round" data-oh-item="iSmartHome_Jalousie_Steuerung" data-oh-command="STOP" title="Stopp">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-icon-round" data-oh-item="iSmartHome_Jalousie_Steuerung" data-oh-command="DOWN" title="Ab">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+          <div class="control-row" style="margin-top:8px;">
+            <span class="data-label">Position:</span>
+            <div class="slider-container">
+              <input type="range" min="0" max="100" value="0" data-oh-item="iSmartHome_Jalousie_Steuerung" data-oh-type="rollershutter" data-oh-display="disp-jalousie-pos">
+              <span class="data-value" id="disp-jalousie-pos">--%</span>
+            </div>
+          </div>
+          <div class="control-row">
+            <span class="data-label">Lamellen-Orientierung:</span>
+            <div class="slider-container">
+              <input type="range" min="0" max="100" value="0" data-oh-item="iSmartHome_Jalousie_Orientierung" data-oh-type="dimmer" data-oh-display="disp-jalousie-orient">
+              <span class="data-value" id="disp-jalousie-orient">--%</span>
+            </div>
+          </div>
+        </div>
+        <!-- Lampen (Global Hue) -->
+        <div class="card">
+          <div class="card-title">
+            <span>
+              <i class="fa-solid fa-lightbulb"></i> Philips Hue Lampen (Global) </span>
+            <div class="toggle-switch" data-oh-item="iSmartHome_Hue_Lampen_Schalter"></div>
+          </div>
+          <div class="control-row">
+            <span class="data-label">Helligkeit:</span>
+            <div class="slider-container">
+              <input type="range" min="0" max="100" value="0" data-oh-item="iSmartHome_Hue_Lampen_Helligkeit" data-oh-type="dimmer" data-oh-display="disp-lampen-hell">
+              <span class="data-value" id="disp-lampen-hell">--%</span>
+            </div>
+          </div>
+          <div class="control-row">
+            <span class="data-label">Farbtemperatur:</span>
+            <div class="slider-container">
+              <input type="range" min="0" max="100" value="0" data-oh-item="iSmartHome_Hue_Lampen_Farbtemperatur" data-oh-type="dimmer" data-oh-display="disp-lampen-temp">
+              <span class="data-value" id="disp-lampen-temp">--%</span>
+            </div>
+          </div>
+          <div class="colorwheel" data-oh-item="iSmartHome_Hue_Lampen_Farbe">
+            <div class="colorwheel-canvas-wrap">
+              <canvas class="colorwheel-canvas" width="140" height="140"></canvas>
+              <div class="colorwheel-thumb"></div>
+            </div>
+            <input type="range" class="colorwheel-brightness" min="0" max="100" value="100">
+          </div>
+          <div class="control-row" style="gap:8px;">
+            <span class="data-label">Effekt</span>
+            <div class="toggle-switch" data-oh-item="iSmartHome_Hue_Lampen_Farbeffekt"></div>
+          </div>
+          <div class="transport-row" style="margin-top:8px;">
+            <button class="btn btn-sm" data-oh-item="iSmartHome_Hue_Lampen_Alarm" data-oh-command="none">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+            <button class="btn btn-sm" data-oh-item="iSmartHome_Hue_Lampen_Alarm" data-oh-command="select">
+              <i class="fa-solid fa-bolt"></i> Kurz </button>
+            <button class="btn btn-sm" data-oh-item="iSmartHome_Hue_Lampen_Alarm" data-oh-command="lselect">
+              <i class="fa-solid fa-bolt"></i> Lang </button>
+          </div>
+        </div>
+        <!-- Abfallkalender -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-trash-can"></i> Abfallkalender
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Nächste Abholung</span>
+              <span class="data-value" data-oh-item="iSmartHome_Abfallkalendar_NaechsterAbholtermin" data-oh-type="datetime" data-oh-format="dd.MM.yyyy">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Abholtyp</span>
+              <span class="data-value" data-oh-item="iSmartHome_Abfallkalendar_Abholtyp">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Altpapier</span>
+              <span class="data-value" data-oh-item="iSmartHome_Abfallkalendar_NaechsterAbholtermin_Altpapier" data-oh-type="datetime" data-oh-format="dd.MM.yyyy">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Restmüll</span>
+              <span class="data-value" data-oh-item="iSmartHome_Abfallkalendar_NaechsterAbholtermin_Restmuell" data-oh-type="datetime" data-oh-format="dd.MM.yyyy">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Biomüll</span>
+              <span class="data-value" data-oh-item="iSmartHome_Abfallkalendar_NaechsterAbholtermin_Biomuell" data-oh-type="datetime" data-oh-format="dd.MM.yyyy">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Gelbe Tonne</span>
+              <span class="data-value" data-oh-item="iSmartHome_Abfallkalendar_NaechsterAbholtermin_GelbeTonne" data-oh-type="datetime" data-oh-format="dd.MM.yyyy">--</span>
+            </div>
+          </div>
+          <div class="data-label" style="font-size:0.75rem; margin: 8px 0 4px;">Erinnerungskanäle:</div>
+          <div class="btn-grid" style="grid-template-columns: repeat(4, 1fr);">
+            <div class="control-row">
+              <span class="data-label" style="font-size:0.7rem;">SMS</span>
+              <div class="toggle-switch" data-oh-item="iSmartHome_Abfallkalendar_SMSErinnerung"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label" style="font-size:0.7rem;">WhatsApp</span>
+              <div class="toggle-switch" data-oh-item="iSmartHome_Abfallkalendar_WhatsAppErinnerung"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label" style="font-size:0.7rem;">Telegram</span>
+              <div class="toggle-switch" data-oh-item="iSmartHome_Abfallkalendar_TelegramErinnerung"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label" style="font-size:0.7rem;">E-Mail</span>
+              <div class="toggle-switch" data-oh-item="iSmartHome_Abfallkalendar_EmailErinnerung"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label" style="font-size:0.7rem;">Alexa</span>
+              <div class="toggle-switch" data-oh-item="iSmartHome_Abfallkalendar_AlexaErinnerung"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label" style="font-size:0.7rem;">VoiceRSS</span>
+              <div class="toggle-switch" data-oh-item="iSmartHome_Abfallkalendar_VoiceRSSErinnerung"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label" style="font-size:0.7rem;">gTTS</span>
+              <div class="toggle-switch" data-oh-item="iSmartHome_Abfallkalendar_gTTSErinnerung"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label" style="font-size:0.7rem;">pyttsx</span>
+              <div class="toggle-switch" data-oh-item="iSmartHome_Abfallkalendar_pyttsxErinnerung"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Benachrichtigung -->
+        <div class="card wide">
+          <div class="card-title">
+            <i class="fa-solid fa-paper-plane"></i> Benachrichtigung
+          </div>
+          <div class="data-list" style="margin-bottom: 10px;">
+            <div class="data-row">
+              <span class="data-label">Twilio-Guthaben SMS</span>
+              <span class="data-value" data-oh-item="iSmartHome_Twilio_Guthaben_SMS" data-oh-decimals="2" data-oh-suffix=" $">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Twilio-Guthaben WhatsApp</span>
+              <span class="data-value" data-oh-item="iSmartHome_Twilio_Guthaben_WhatsApp" data-oh-decimals="2" data-oh-suffix=" $">--</span>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div class="control-row">
+              <input type="text" id="msg-sms" placeholder="SMS-Text..." style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px; color:var(--text-main); padding:6px 10px;">
+              <button class="btn btn-sm" data-oh-send="iSmartHome_Benachrichtigung_SMS" data-oh-source="msg-sms">
+                <i class="fa-solid fa-sms"></i> Senden </button>
+            </div>
+            <div class="control-row">
+              <input type="text" id="msg-whatsapp" placeholder="WhatsApp-Text..." style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px; color:var(--text-main); padding:6px 10px;">
+              <button class="btn btn-sm" data-oh-send="iSmartHome_Benachrichtigung_WhatsApp" data-oh-source="msg-whatsapp">
+                <i class="fa-brands fa-whatsapp"></i> Senden </button>
+            </div>
+            <div class="control-row">
+              <input type="text" id="msg-telegram" placeholder="Telegram-Text..." style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px; color:var(--text-main); padding:6px 10px;">
+              <button class="btn btn-sm" data-oh-send="iSmartHome_Benachrichtigung_Telegram" data-oh-source="msg-telegram">
+                <i class="fa-brands fa-telegram"></i> Senden </button>
+            </div>
+            <div class="control-row">
+              <input type="text" id="msg-email" placeholder="E-Mail-Text..." style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px; color:var(--text-main); padding:6px 10px;">
+              <button class="btn btn-sm" data-oh-send="iSmartHome_Benachrichtigung_Email" data-oh-source="msg-email">
+                <i class="fa-solid fa-envelope"></i> Senden </button>
+            </div>
+          </div>
+        </div>
+        <!-- Wetter Aktuell -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-temperature-half"></i> Wetter Aktuell
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Name</span>
+              <span class="data-value" data-oh-item="Station_Name">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Bewölkung</span>
+              <span class="data-value" data-oh-item="Wetter_Bewoelkung">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Gefühlt</span>
+              <span class="data-value" data-oh-item="Wetter_Gefuehlt">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftdruck</span>
+              <span class="data-value" data-oh-item="Wetter_Luftdruck" data-oh-decimals="0" data-oh-suffix=" hPa">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftfeuchte</span>
+              <span class="data-value" data-oh-item="Wetter_Luftfeuchte">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Regen</span>
+              <span class="data-value" data-oh-item="Wetter_Regen">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Schnee</span>
+              <span class="data-value" data-oh-item="Wetter_Schnee">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Sichtweite</span>
+              <span class="data-value" data-oh-item="Wetter_Sichtweite">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="Wetter_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Wind</span>
+              <span class="data-value" data-oh-item="Wetter_Wind">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Zeitstempel</span>
+              <span class="data-value" data-oh-item="Wetter_Zeitstempel">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Zustand</span>
+              <span class="data-value" data-oh-item="Wetter_Zustand">--</span>
+            </div>
+          </div>
+        </div>
+        <!-- Luftqualität -->
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-smog"></i> Luftqualität
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Ammoniak</span>
+              <span class="data-value" data-oh-item="Luft_Ammoniak">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Feinstaub 10</span>
+              <span class="data-value" data-oh-item="Luft_Feinstaub10">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Feinstaub 25</span>
+              <span class="data-value" data-oh-item="Luft_Feinstaub25">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Kohlenmonoxid</span>
+              <span class="data-value" data-oh-item="Luft_Kohlenmonoxid">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Ozon</span>
+              <span class="data-value" data-oh-item="Luft_Ozon">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Qualitaetsindex</span>
+              <span class="data-value" data-oh-item="Luft_Qualitaetsindex">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Schwefeldioxid</span>
+              <span class="data-value" data-oh-item="Luft_Schwefeldioxid">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Stickstoffdioxid</span>
+              <span class="data-value" data-oh-item="Luft_Stickstoffdioxid">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Zeitstempel</span>
+              <span class="data-value" data-oh-item="Luft_Zeitstempel">--</span>
+            </div>
+          </div>
+        </div>
+        <!-- Wettervorhersage -->
+        <div class="card wide">
+          <div class="card-title">
+            <i class="fa-solid fa-cloud-sun-rain"></i> Wettervorhersage (Nächste 24 Stunden)
+          </div>
+          <div class="forecast-grid">
+            <div class="forecast-item">
+              <span>+3h</span>
+              <i class="fa-solid fa-cloud-sun" style="color:#f59e0b; font-size:1.2rem;"></i>
+              <span data-oh-item="V03h_Temperatur" data-oh-decimals="0" data-oh-suffix="°C">--</span>
+              <span style="color:var(--text-muted)" data-oh-item="V03h_Regen" data-oh-decimals="1" data-oh-suffix="mm">--</span>
+            </div>
+            <div class="forecast-item">
+              <span>+6h</span>
+              <i class="fa-solid fa-cloud-sun" style="color:#f59e0b; font-size:1.2rem;"></i>
+              <span data-oh-item="V06h_Temperatur" data-oh-decimals="0" data-oh-suffix="°C">--</span>
+              <span style="color:var(--text-muted)" data-oh-item="V06h_Regen" data-oh-decimals="1" data-oh-suffix="mm">--</span>
+            </div>
+            <div class="forecast-item">
+              <span>+9h</span>
+              <i class="fa-solid fa-cloud" style="color:#94a3b8; font-size:1.2rem;"></i>
+              <span data-oh-item="V09h_Temperatur" data-oh-decimals="0" data-oh-suffix="°C">--</span>
+              <span style="color:var(--text-muted)" data-oh-item="V09h_Regen" data-oh-decimals="1" data-oh-suffix="mm">--</span>
+            </div>
+            <div class="forecast-item">
+              <span>+12h</span>
+              <i class="fa-solid fa-cloud-showers-heavy" style="color:#38bdf8; font-size:1.2rem;"></i>
+              <span data-oh-item="V12h_Temperatur" data-oh-decimals="0" data-oh-suffix="°C">--</span>
+              <span style="color:var(--text-muted)" data-oh-item="V12h_Regen" data-oh-decimals="1" data-oh-suffix="mm">--</span>
+            </div>
+            <div class="forecast-item">
+              <span>+15h</span>
+              <i class="fa-solid fa-moon" style="color:#cbd5e1; font-size:1.2rem;"></i>
+              <span data-oh-item="V15h_Temperatur" data-oh-decimals="0" data-oh-suffix="°C">--</span>
+              <span style="color:var(--text-muted)" data-oh-item="V15h_Regen" data-oh-decimals="1" data-oh-suffix="mm">--</span>
+            </div>
+            <div class="forecast-item">
+              <span>+18h</span>
+              <i class="fa-solid fa-moon" style="color:#cbd5e1; font-size:1.2rem;"></i>
+              <span data-oh-item="V18h_Temperatur" data-oh-decimals="0" data-oh-suffix="°C">--</span>
+              <span style="color:var(--text-muted)" data-oh-item="V18h_Regen" data-oh-decimals="1" data-oh-suffix="mm">--</span>
+            </div>
+            <div class="forecast-item">
+              <span>+21h</span>
+              <i class="fa-solid fa-sun" style="color:#f59e0b; font-size:1.2rem;"></i>
+              <span data-oh-item="V21h_Temperatur" data-oh-decimals="0" data-oh-suffix="°C">--</span>
+              <span style="color:var(--text-muted)" data-oh-item="V21h_Regen" data-oh-decimals="1" data-oh-suffix="mm">--</span>
+            </div>
+            <div class="forecast-item">
+              <span>+24h</span>
+              <i class="fa-solid fa-sun" style="color:#f59e0b; font-size:1.2rem;"></i>
+              <span data-oh-item="V24h_Temperatur" data-oh-decimals="0" data-oh-suffix="°C">--</span>
+              <span style="color:var(--text-muted)" data-oh-item="V24h_Regen" data-oh-decimals="1" data-oh-suffix="mm">--</span>
+            </div>
+          </div>
+          <p style="font-size:0.7rem; color:var(--text-muted); margin-top:6px;">Icons sind aktuell fest je Zeitslot hinterlegt (nicht aus <code>Zustand</code> abgeleitet) - bei Bedarf in <code>app.js</code> per Icon-Mapping-Tabelle ergänzen. </p>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-sun"></i> Sonne
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Aufgang Start</span>
+              <span class="data-value" data-oh-item="Sonne_Aufgang_Start">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Azimut</span>
+              <span class="data-value" data-oh-item="Sonne_Azimut">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Buerg Daemm Start</span>
+              <span class="data-value" data-oh-item="Sonne_BuergDaemm_Start">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Buerg Dusk Ende</span>
+              <span class="data-value" data-oh-item="Sonne_BuergDusk_Ende">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Elevation</span>
+              <span class="data-value" data-oh-item="Sonne_Elevation">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Jahreszeit Nächste</span>
+              <span class="data-value" data-oh-item="Sonne_Jahreszeit_Naechste">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Jahreszeit Name</span>
+              <span class="data-value" data-oh-item="Sonne_Jahreszeit_Name">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Jahreszeit Rest</span>
+              <span class="data-value" data-oh-item="Sonne_Jahreszeit_Rest">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Mittag Start</span>
+              <span class="data-value" data-oh-item="Sonne_Mittag_Start">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Sternzeichen Name</span>
+              <span class="data-value" data-oh-item="Sonne_Sternzeichen_Name">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Strahlung Gesamt</span>
+              <span class="data-value" data-oh-item="Sonne_Strahlung_Gesamt">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Tageslicht Dauer</span>
+              <span class="data-value" data-oh-item="Sonne_Tageslicht_Dauer">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Untergang Start</span>
+              <span class="data-value" data-oh-item="Sonne_Untergang_Start">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-moon"></i> Mond
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Aufgang Start</span>
+              <span class="data-value" data-oh-item="Mond_Aufgang_Start">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Azimut</span>
+              <span class="data-value" data-oh-item="Mond_Azimut">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Elevation</span>
+              <span class="data-value" data-oh-item="Mond_Elevation">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Entfernung Wert</span>
+              <span class="data-value" data-oh-item="Mond_Entfernung_Wert">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Perigaeuum Abstand</span>
+              <span class="data-value" data-oh-item="Mond_Perigaeuum_Abstand">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Perigaeuum Datum</span>
+              <span class="data-value" data-oh-item="Mond_Perigaeuum_Datum">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Phase Beleuchtung</span>
+              <span class="data-value" data-oh-item="Mond_Phase_Beleuchtung">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Phase Name</span>
+              <span class="data-value" data-oh-item="Mond_Phase_Name">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Phase Neumond</span>
+              <span class="data-value" data-oh-item="Mond_Phase_Neumond">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Phase Vollmond</span>
+              <span class="data-value" data-oh-item="Mond_Phase_Vollmond">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Sternzeichen</span>
+              <span class="data-value" data-oh-item="Mond_Sternzeichen">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Untergang Start</span>
+              <span class="data-value" data-oh-item="Mond_Untergang_Start">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- TAB: KONFERENZ -->
+      <div id="tab-konferenz" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-lock"></i> Danalock Türschloss
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schloss</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_DanaLock_Tuerschloss_Schloss"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Schloss 2</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_DanaLock_Tuerschloss_Schloss_2"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Batteriestatus</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_DanaLock_Tuerschloss_Batteriestatus" data-oh-map="ON:Schwach,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Batteriestatus 2</span>
+              <span class="data-value" data-oh-item="iKonferenz_DanaLock_Tuerschloss_Batteriestatus_2">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Bewegungsmelder 1
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Bewegungsalarm</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Fibaro_Bewegungsmelder1_Bewegungsalarm" data-oh-map="ON:Bewegung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Batteriestatus</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Fibaro_Bewegungsmelder1_Batteriestatus" data-oh-map="ON:Schwach,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Bewegungsalarm</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Fibaro_Bewegungsmelder1_Bewegungsalarm" data-oh-map="ON:Bewegung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iKonferenz_Fibaro_Bewegungsmelder1_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Türsensor
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Kontakt 1</span>
+              <span class="data-value" data-oh-item="iKonferenz_Fibaro_Tuersensor_Kontakt1">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Homematic Gong
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Homematic_Gong_Position1" data-oh-command="ON">
+              <i class="fa-solid fa-bell"></i> Gong </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-tv"></i> Crestron Room View Steuerung
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_LautstaerkeErhoehen" data-oh-command="ON" title="Lauter">
+              <i class="fa-solid fa-volume-high"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_LautstaerkeVerringern" data-oh-command="ON" title="Leiser">
+              <i class="fa-solid fa-volume-low"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_Mute" data-oh-command="ON" title="Stumm">
+              <i class="fa-solid fa-volume-xmark"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_SrcComputer1" data-oh-command="ON">
+              <i class="fa-solid fa-desktop"></i> Comp 1 </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_SrcComputer2" data-oh-command="ON">
+              <i class="fa-solid fa-desktop"></i> Comp 2 </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_SrcHDMI1" data-oh-command="ON">
+              <i class="fa-solid fa-plug"></i> HDMI 1 </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_SrcHDMI2" data-oh-command="ON">
+              <i class="fa-solid fa-plug"></i> HDMI 2 </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_SrcSVideo" data-oh-command="ON">
+              <i class="fa-solid fa-video"></i> S-Video </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_SrcVideo" data-oh-command="ON">
+              <i class="fa-solid fa-video"></i> Video </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalter</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_Crestron_RoomView_Steuerung_Schalter"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card wide">
+          <div class="card-title">
+            <i class="fa-solid fa-play"></i> VLC Steuerung
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_10SekundenVorspulen" data-oh-command="ON" title="+10s">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_10SekundenZurueckspulen" data-oh-command="ON" title="-10s">
+              <i class="fa-solid fa-backward"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_1MinuteVorspulen" data-oh-command="ON" title="+1m">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_1MinutenZurueckspulen" data-oh-command="ON" title="-1m">
+              <i class="fa-solid fa-backward"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_3SekundenVorspulen" data-oh-command="ON" title="+3s">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_3SekundenZurueckspulen" data-oh-command="ON" title="-3s">
+              <i class="fa-solid fa-backward"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_5MinutenVorspulen" data-oh-command="ON" title="+5m">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_5MinutenZurueckspulen" data-oh-command="ON" title="-5m">
+              <i class="fa-solid fa-backward"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_AbspielenPause" data-oh-command="ON" title="Play/Pause">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_AufnahmeStartenStoppen" data-oh-command="ON">
+              <i class="fa-solid fa-circle"></i> Aufnahme </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_Langsamer" data-oh-command="ON" title="Langsamer">
+              <i class="fa-solid fa-turtle"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_Lauter" data-oh-command="ON" title="Lauter">
+              <i class="fa-solid fa-volume-high"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_Leiser" data-oh-command="ON" title="Leiser">
+              <i class="fa-solid fa-volume-low"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_Mute" data-oh-command="ON" title="Stumm">
+              <i class="fa-solid fa-volume-xmark"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_NaechsteAufnahme" data-oh-command="ON">
+              <i class="fa-solid fa-forward-step"></i> Nächste </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_NaechsterFrame" data-oh-command="ON">
+              <i class="fa-solid fa-forward-step"></i> Bild </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_NormaleGeschwindigkeit" data-oh-command="ON">
+              <i class="fa-solid fa-gauge"></i> 1x </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_SchleifeneinstellungAendern" data-oh-command="ON">
+              <i class="fa-solid fa-repeat"></i> Loop </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_SchnappschussErstellen" data-oh-command="ON">
+              <i class="fa-solid fa-camera"></i> Foto </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_Schneller" data-oh-command="ON" title="Schneller">
+              <i class="fa-solid fa-gauge-high"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_Stop" data-oh-command="ON" title="Stopp">
+              <i class="fa-solid fa-stop"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_VollbildDeaktivieren" data-oh-command="ON">
+              <i class="fa-solid fa-compress"></i> Vollbild aus </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_VollbildUmschalten" data-oh-command="ON">
+              <i class="fa-solid fa-expand"></i> Vollbild </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_VLC_Steuerung_VorherigeAufnahme" data-oh-command="ON">
+              <i class="fa-solid fa-backward-step"></i> Vorherige </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> WebTV Sender
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <input type="text" id="in-ikonferenz-webtv-sender-text" placeholder="Text..." style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px; color:var(--text-main); padding:5px 8px; font-size:0.8rem;">
+              <button class="btn btn-sm" data-oh-send="iKonferenz_Webtv_Sender_Text" data-oh-source="in-ikonferenz-webtv-sender-text">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-cloud"></i> Netatmo Kamera Welcome
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iKonferenz_Netatmo_Kamera_Welcome_Status">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-fan"></i> essentials Raumluftreiniger
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iKonferenz_RaumluftreinigerMQTT2_Modus" data-oh-command="auto">auto</button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_RaumluftreinigerMQTT2_Modus" data-oh-command="H">
+              <i class="fa-solid fa-fan"></i> Hoch </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_RaumluftreinigerMQTT2_Modus" data-oh-command="M">
+              <i class="fa-solid fa-fan"></i> Mittel </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_RaumluftreinigerMQTT2_Modus" data-oh-command="sleep">
+              <i class="fa-solid fa-moon"></i> Sleep </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Kindersicherung</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_RaumluftreinigerMQTT2_Kindersicherung"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Schalten</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_RaumluftreinigerMQTT2_Schalten"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">UV</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_RaumluftreinigerMQTT2_UV"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Filter</span>
+              <span class="data-value" data-oh-item="iKonferenz_RaumluftreinigerMQTT2_Filter">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftqualitaet</span>
+              <span class="data-value" data-oh-item="iKonferenz_RaumluftreinigerMQTT2_Luftqualitaet">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card wide">
+          <div class="card-title">
+            <i class="fa-solid fa-volume-high"></i> Sonos Playbar
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Sonos_Playbar_Fernbedienung" data-oh-command="PREVIOUS">PREVIOUS</button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_Sonos_Playbar_Fernbedienung" data-oh-command="PLAY" title="Fernbedienung: Play">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_Sonos_Playbar_Fernbedienung" data-oh-command="PAUSE" title="Fernbedienung: Pause">
+              <i class="fa-solid fa-pause"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKonferenz_Sonos_Playbar_Fernbedienung" data-oh-command="NEXT" title="Fernbedienung: Weiter">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Sonos_Playbar_Schlummern" data-oh-command="15">
+              <i class="fa-solid fa-bed"></i> 15 Min </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Sonos_Playbar_Schlummern" data-oh-command="30">
+              <i class="fa-solid fa-bed"></i> 30 Min </button>
+            <button class="btn btn-sm" data-oh-item="iKonferenz_Sonos_Playbar_Schlummern" data-oh-command="0">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">LED</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_Sonos_Playbar_LED"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iKonferenz_Sonos_Playbar_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-ikonferenz-sonos-playbar-lautstaerke">
+                <span class="data-value" id="disp-ikonferenz-sonos-playbar-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Stumm</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_Sonos_Playbar_Stumm"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Wiederholen</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_Sonos_Playbar_Wiederholen" data-oh-on-value="all" data-oh-off-value="off"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Zufällig</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_Sonos_Playbar_Zufaellig" data-oh-on-value="all" data-oh-off-value="off"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Künstler</span>
+              <span class="data-value" data-oh-item="iKonferenz_Sonos_Playbar_Kuenstler">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iKonferenz_Sonos_Playbar_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Titel</span>
+              <span class="data-value" data-oh-item="iKonferenz_Sonos_Playbar_Titel">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-volume-high"></i> Sonos Subwoofer
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iKonferenz_Sonos_Subwoofer_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-ikonferenz-sonos-subwoofer-lautstaerke">
+                <span class="data-value" id="disp-ikonferenz-sonos-subwoofer-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Stumm</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_Sonos_Subwoofer_Stumm"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Homematic Drucktaster
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Batterie Status</span>
+              <span class="badge-ok" data-oh-item="iKonferenz_Homematic_Drucktaster_BatterieStatus" data-oh-map="ON:Schwach,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Empfang</span>
+              <span class="data-value" data-oh-item="iKonferenz_Homematic_Drucktaster_Empfang" data-oh-decimals="0" data-oh-suffix=" dBm">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Homematic Lüfter
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalten</span>
+              <div class="toggle-switch" data-oh-item="iKonferenz_Homematic_Luefter_Schalten"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Homematic Steckdose
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iKonferenz_Homematic_Steckdose_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- TAB: KUECHE -->
+      <div id="tab-kueche" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-lightbulb"></i> Philips Hue Lampen
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iKueche_Hue_Lampen_Alarm" data-oh-command="none">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+            <button class="btn btn-sm" data-oh-item="iKueche_Hue_Lampen_Alarm" data-oh-command="select">
+              <i class="fa-solid fa-bolt"></i> Kurz </button>
+            <button class="btn btn-sm" data-oh-item="iKueche_Hue_Lampen_Alarm" data-oh-command="lselect">
+              <i class="fa-solid fa-bolt"></i> Lang </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="colorwheel" data-oh-item="iKueche_Hue_Lampen_Farbe">
+              <div class="colorwheel-canvas-wrap">
+                <canvas class="colorwheel-canvas" width="140" height="140"></canvas>
+                <div class="colorwheel-thumb"></div>
+              </div>
+              <input type="range" class="colorwheel-brightness" min="0" max="100" value="100">
+            </div>
+            <div class="control-row">
+              <span class="data-label">Farbeffekt</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Hue_Lampen_Farbeffekt"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Farbtemperatur</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iKueche_Hue_Lampen_Farbtemperatur" data-oh-type="dimmer" data-oh-display="disp-ikueche-hue-lampen-farbtemperatur">
+                <span class="data-value" id="disp-ikueche-hue-lampen-farbtemperatur">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Helligkeit</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iKueche_Hue_Lampen_Helligkeit" data-oh-type="dimmer" data-oh-display="disp-ikueche-hue-lampen-helligkeit">
+                <span class="data-value" id="disp-ikueche-hue-lampen-helligkeit">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Schalter</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Hue_Lampen_Schalter"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Bewegungsmelder 1
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Bewegungsalarm</span>
+              <span class="badge-ok" data-oh-item="iKueche_Fibaro_Bewegungsmelder1_Bewegungsalarm" data-oh-map="ON:Bewegung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Erschütterung</span>
+              <span class="badge-ok" data-oh-item="iKueche_Fibaro_Bewegungsmelder1_Erschuetterung" data-oh-map="ON:Erschütterung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Helligkeit</span>
+              <span class="data-value" data-oh-item="iKueche_Fibaro_Bewegungsmelder1_Helligkeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Fibaro_Bewegungsmelder1_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Bewegungsmelder 2
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Bewegungsalarm</span>
+              <span class="badge-ok" data-oh-item="iKueche_Fibaro_Bewegungsmelder2_Bewegungsalarm" data-oh-map="ON:Bewegung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Erschütterung</span>
+              <span class="badge-ok" data-oh-item="iKueche_Fibaro_Bewegungsmelder2_Erschuetterung" data-oh-map="ON:Erschütterung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Helligkeit</span>
+              <span class="data-value" data-oh-item="iKueche_Fibaro_Bewegungsmelder2_Helligkeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Fibaro_Bewegungsmelder2_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-cloud"></i> Netatmo Wetter Innenmodul
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Batterieladung</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_Batterieladung" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">CO 2</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_CO2" data-oh-decimals="0" data-oh-suffix=" ppm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Hitzeindex</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_Hitzeindex" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leere Batterie</span>
+              <span class="badge-ok" data-oh-item="iKueche_Netatmo_WetterInnenmodul_LeereBatterie" data-oh-map="ON:Leer,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Letzte Messung</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_LetzteMessung">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftfeuchtigkeit</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_Luftfeuchtigkeit" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Max Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_MaxTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Min Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_MinTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Signalstaerke</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_Signalstaerke" data-oh-decimals="0" data-oh-suffix=" dBm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Taupunkt</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_Taupunkt" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperaturtrend</span>
+              <span class="data-value" data-oh-item="iKueche_Netatmo_WetterInnenmodul_Temperaturtrend">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-blinds"></i> Somfy Jalousie Hinten
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKueche_Jalousie_Hinten_Steuerung" data-oh-command="UP" title="Steuerung: Auf">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKueche_Jalousie_Hinten_Steuerung" data-oh-command="STOP" title="Steuerung: Stopp">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKueche_Jalousie_Hinten_Steuerung" data-oh-command="DOWN" title="Steuerung: Ab">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Orientierung</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iKueche_Jalousie_Hinten_Orientierung" data-oh-type="dimmer" data-oh-display="disp-ikueche-jalousie-hinten-orientierung">
+                <span class="data-value" id="disp-ikueche-jalousie-hinten-orientierung">--%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-blinds"></i> Somfy Jalousie Vorne
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKueche_Jalousie_Vorne_Steuerung" data-oh-command="UP" title="Steuerung: Auf">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKueche_Jalousie_Vorne_Steuerung" data-oh-command="STOP" title="Steuerung: Stopp">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKueche_Jalousie_Vorne_Steuerung" data-oh-command="DOWN" title="Steuerung: Ab">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Orientierung</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iKueche_Jalousie_Vorne_Orientierung" data-oh-type="dimmer" data-oh-display="disp-ikueche-jalousie-vorne-orientierung">
+                <span class="data-value" id="disp-ikueche-jalousie-vorne-orientierung">--%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-kitchen-set"></i> Miele Kochfeld
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Kochfeld_Status">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-fire-burner"></i> Miele Ofen
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Aktuelle Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Ofen_AktTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Endzeit</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Ofen_Endzeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Programm</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Ofen_Programm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Restzeit</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Ofen_Restzeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Ofen_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Tür</span>
+              <span class="badge-ok" data-oh-item="iKueche_Miele_Ofen_Tuer" data-oh-map="OPEN:Offen,CLOSED:Zu" data-oh-badge-map="OPEN:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Ziel Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Ofen_ZielTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-utensils"></i> Miele Geschirrspüler
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Start</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Miele_Geschirrspueler_Start"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Endzeit</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Geschirrspueler_Endzeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Programm</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Geschirrspueler_Programm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Restzeit</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Geschirrspueler_Restzeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Geschirrspueler_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Stromverbrauch</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Geschirrspueler_Stromverbrauch" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Tür</span>
+              <span class="badge-ok" data-oh-item="iKueche_Miele_Geschirrspueler_Tuer" data-oh-map="OPEN:Offen,CLOSED:Zu" data-oh-badge-map="OPEN:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Wasserverbrauch</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Geschirrspueler_Wasserverbrauch" data-oh-decimals="1" data-oh-suffix=" L">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-mug-hot"></i> Miele Kaffeemaschine
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Start</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Miele_Kaffeemaschine_Start"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Programm</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Kaffeemaschine_Programm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Kaffeemaschine_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Tür</span>
+              <span class="badge-ok" data-oh-item="iKueche_Miele_Kaffeemaschine_Tuer" data-oh-map="OPEN:Offen,CLOSED:Zu" data-oh-badge-map="OPEN:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-snowflake"></i> Miele Kühlschrank
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Extra Frost</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Miele_Kuehlschrank_ExtraFrost"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Extra Kaelte</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Miele_Kuehlschrank_ExtraKaelte"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Aktuelle Gefrier Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Kuehlschrank_AktGefrierTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Aktuelle Kühlschrank Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Kuehlschrank_AktKuehlschrankTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Gefrier Tür</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Kuehlschrank_GefrierTuer">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Kuehlschrank_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Ziel Gefrier Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Kuehlschrank_ZielGefrierTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Ziel Kühlschrank Temperatur</span>
+              <span class="data-value" data-oh-item="iKueche_Miele_Kuehlschrank_ZielKuehlschrankTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-volume-high"></i> Sonos Lautsprecher
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iKueche_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PREVIOUS">PREVIOUS</button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKueche_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PLAY" title="Fernbedienung: Play">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKueche_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PAUSE" title="Fernbedienung: Pause">
+              <i class="fa-solid fa-pause"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iKueche_Sonos_Lautsprecher_Fernbedienung" data-oh-command="NEXT" title="Fernbedienung: Weiter">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iKueche_Sonos_Lautsprecher_Schlummern" data-oh-command="15">
+              <i class="fa-solid fa-bed"></i> 15 Min </button>
+            <button class="btn btn-sm" data-oh-item="iKueche_Sonos_Lautsprecher_Schlummern" data-oh-command="30">
+              <i class="fa-solid fa-bed"></i> 30 Min </button>
+            <button class="btn btn-sm" data-oh-item="iKueche_Sonos_Lautsprecher_Schlummern" data-oh-command="0">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">LED</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Sonos_Lautsprecher_LED"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iKueche_Sonos_Lautsprecher_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-ikueche-sonos-lautsprecher-lautstaerke">
+                <span class="data-value" id="disp-ikueche-sonos-lautsprecher-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Stumm</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Sonos_Lautsprecher_Stumm"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Wiederholen</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Sonos_Lautsprecher_Wiederholen" data-oh-on-value="all" data-oh-off-value="off"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Zufällig</span>
+              <div class="toggle-switch" data-oh-item="iKueche_Sonos_Lautsprecher_Zufaellig" data-oh-on-value="all" data-oh-off-value="off"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Album</span>
+              <span class="data-value" data-oh-item="iKueche_Sonos_Lautsprecher_Album">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Künstler</span>
+              <span class="data-value" data-oh-item="iKueche_Sonos_Lautsprecher_Kuenstler">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Titel</span>
+              <span class="data-value" data-oh-item="iKueche_Sonos_Lautsprecher_Titel">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">URIspielen</span>
+              <span class="data-value" data-oh-item="iKueche_Sonos_Lautsprecher_URIspielen">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> digitalSTROM Herd Phase 1
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energie</span>
+              <span class="data-value" data-oh-item="iKueche_DigitalStrom_HerdPhase1_Energie" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iKueche_DigitalStrom_HerdPhase1_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> digitalSTROM Herd Phase 2
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energie</span>
+              <span class="data-value" data-oh-item="iKueche_DigitalStrom_HerdPhase2_Energie" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iKueche_DigitalStrom_HerdPhase2_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> digitalSTROM Herd Phase 3
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energie</span>
+              <span class="data-value" data-oh-item="iKueche_DigitalStrom_HerdPhase3_Energie" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iKueche_DigitalStrom_HerdPhase3_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> digitalSTROM Steckdose
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energie</span>
+              <span class="data-value" data-oh-item="iKueche_DigitalStrom_Steckdose_Energie" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iKueche_DigitalStrom_Steckdose_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- TAB: BAD -->
+      <div id="tab-bad" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Türsensor
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Alarm CO 2</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Tuersensor_AlarmCO2" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm Rauch</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Tuersensor_AlarmRauch" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Kontakt 1</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Tuersensor_Kontakt1">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm CO 2</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Tuersensor_AlarmCO2" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm Rauch</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Tuersensor_AlarmRauch" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Batteriestatus</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Tuersensor_Batteriestatus" data-oh-map="ON:Schwach,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Kontakt 1</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Tuersensor_Kontakt1">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Kontakt 2</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Tuersensor_Kontakt2">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Tuersensor_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Wassersensor
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Alarm Wasserleck</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Wassersensor_AlarmWasserleck" data-oh-map="ON:Leck!,OFF:Trocken" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">Trocken</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm Wasserleck</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Wassersensor_AlarmWasserleck" data-oh-map="ON:Leck!,OFF:Trocken" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">Trocken</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Batterie</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Wassersensor_Batterie" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Wassersensor_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-lightbulb"></i> Philips Hue Lampen
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iBad_Hue_Lampen_Alarm" data-oh-command="none">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+            <button class="btn btn-sm" data-oh-item="iBad_Hue_Lampen_Alarm" data-oh-command="select">
+              <i class="fa-solid fa-bolt"></i> Kurz </button>
+            <button class="btn btn-sm" data-oh-item="iBad_Hue_Lampen_Alarm" data-oh-command="lselect">
+              <i class="fa-solid fa-bolt"></i> Lang </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalter</span>
+              <div class="toggle-switch" data-oh-item="iBad_Hue_Lampen_Schalter"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Helligkeit</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iBad_Hue_Lampen_Helligkeit" data-oh-type="dimmer" data-oh-display="disp-ibad-hue-lampen-helligkeit">
+                <span class="data-value" id="disp-ibad-hue-lampen-helligkeit">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Farbtemperatur</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iBad_Hue_Lampen_Farbtemperatur" data-oh-type="dimmer" data-oh-display="disp-ibad-hue-lampen-farbtemperatur">
+                <span class="data-value" id="disp-ibad-hue-lampen-farbtemperatur">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Farbeffekt</span>
+              <div class="toggle-switch" data-oh-item="iBad_Hue_Lampen_Farbeffekt"></div>
+            </div>
+            <div class="colorwheel" data-oh-item="iBad_Hue_Lampen_Farbe">
+              <div class="colorwheel-canvas-wrap">
+                <canvas class="colorwheel-canvas" width="140" height="140"></canvas>
+                <div class="colorwheel-thumb"></div>
+              </div>
+              <input type="range" class="colorwheel-brightness" min="0" max="100" value="100">
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Bewegungsmelder 1
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Batteriestatus</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Bewegungsmelder1_Batteriestatus" data-oh-map="ON:Schwach,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Bewegungsalarm</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Bewegungsmelder1_Bewegungsalarm" data-oh-map="ON:Bewegung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Erschütterung</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Bewegungsmelder1_Erschuetterung" data-oh-map="ON:Erschütterung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Helligkeit</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Bewegungsmelder1_Helligkeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Bewegungsmelder1_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Bewegungsmelder 2
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Batteriestatus</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Bewegungsmelder2_Batteriestatus" data-oh-map="ON:Schwach,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Bewegungsalarm</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Bewegungsmelder2_Bewegungsalarm" data-oh-map="ON:Bewegung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Erschütterung</span>
+              <span class="badge-ok" data-oh-item="iBad_Fibaro_Bewegungsmelder2_Erschuetterung" data-oh-map="ON:Erschütterung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Helligkeit</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Bewegungsmelder2_Helligkeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iBad_Fibaro_Bewegungsmelder2_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-cloud"></i> Netatmo Wetter Innenmodul
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Batterieladung</span>
+              <span class="data-value" data-oh-item="iBad_Netatmo_WetterInnenmodul_Batterieladung" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">CO 2</span>
+              <span class="data-value" data-oh-item="iBad_Netatmo_WetterInnenmodul_CO2" data-oh-decimals="0" data-oh-suffix=" ppm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leere Batterie</span>
+              <span class="badge-ok" data-oh-item="iBad_Netatmo_WetterInnenmodul_LeereBatterie" data-oh-map="ON:Leer,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftfeuchtigkeit</span>
+              <span class="data-value" data-oh-item="iBad_Netatmo_WetterInnenmodul_Luftfeuchtigkeit" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Max Temperatur</span>
+              <span class="data-value" data-oh-item="iBad_Netatmo_WetterInnenmodul_MaxTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Min Temperatur</span>
+              <span class="data-value" data-oh-item="iBad_Netatmo_WetterInnenmodul_MinTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Signalstaerke</span>
+              <span class="data-value" data-oh-item="iBad_Netatmo_WetterInnenmodul_Signalstaerke" data-oh-decimals="0" data-oh-suffix=" dBm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Taupunkt</span>
+              <span class="data-value" data-oh-item="iBad_Netatmo_WetterInnenmodul_Taupunkt" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iBad_Netatmo_WetterInnenmodul_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperaturtrend</span>
+              <span class="data-value" data-oh-item="iBad_Netatmo_WetterInnenmodul_Temperaturtrend">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-blinds"></i> Somfy Jalousie Hinten
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iBad_Jalousie_Hinten_Steuerung" data-oh-command="UP" title="Steuerung: Auf">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iBad_Jalousie_Hinten_Steuerung" data-oh-command="STOP" title="Steuerung: Stopp">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iBad_Jalousie_Hinten_Steuerung" data-oh-command="DOWN" title="Steuerung: Ab">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Orientierung</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iBad_Jalousie_Hinten_Orientierung" data-oh-type="dimmer" data-oh-display="disp-ibad-jalousie-hinten-orientierung">
+                <span class="data-value" id="disp-ibad-jalousie-hinten-orientierung">--%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-blinds"></i> Somfy Jalousie Vorne
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iBad_Jalousie_Vorne_Steuerung" data-oh-command="UP" title="Steuerung: Auf">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iBad_Jalousie_Vorne_Steuerung" data-oh-command="STOP" title="Steuerung: Stopp">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iBad_Jalousie_Vorne_Steuerung" data-oh-command="DOWN" title="Steuerung: Ab">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Orientierung</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iBad_Jalousie_Vorne_Orientierung" data-oh-type="dimmer" data-oh-display="disp-ibad-jalousie-vorne-orientierung">
+                <span class="data-value" id="disp-ibad-jalousie-vorne-orientierung">--%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-wind"></i> Miele Trockner
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalter</span>
+              <div class="toggle-switch" data-oh-item="iBad_Miele_Trockner_Schalter"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Ende</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Trockner_Ende">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Endzeit</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Trockner_Endzeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Phase</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Trockner_Phase">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Programm</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Trockner_Programm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Schritt</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Trockner_Schritt">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Trockner_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Tür</span>
+              <span class="badge-ok" data-oh-item="iBad_Miele_Trockner_Tuer" data-oh-map="OPEN:Offen,CLOSED:Zu" data-oh-badge-map="OPEN:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-shirt"></i> Miele Waschmaschine
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalter</span>
+              <div class="toggle-switch" data-oh-item="iBad_Miele_Waschmaschine_Schalter"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Drehzahl</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Waschmaschine_Drehzahl" data-oh-decimals="0" data-oh-suffix=" U/min">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Ende</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Waschmaschine_Ende">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Endzeit</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Waschmaschine_Endzeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Phase</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Waschmaschine_Phase">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Programm</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Waschmaschine_Programm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Waschmaschine_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Stromverbrauch</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Waschmaschine_Stromverbrauch" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Tür</span>
+              <span class="badge-ok" data-oh-item="iBad_Miele_Waschmaschine_Tuer" data-oh-map="OPEN:Offen,CLOSED:Zu" data-oh-badge-map="OPEN:badge-warning,CLOSED:badge-ok">Zu</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Wasserverbrauch</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Waschmaschine_Wasserverbrauch" data-oh-decimals="1" data-oh-suffix=" L">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Ziel Temperatur</span>
+              <span class="data-value" data-oh-item="iBad_Miele_Waschmaschine_ZielTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card wide">
+          <div class="card-title">
+            <i class="fa-solid fa-volume-high"></i> Sonos Lautsprecher
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iBad_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PREVIOUS">PREVIOUS</button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iBad_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PLAY" title="Fernbedienung: Play">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iBad_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PAUSE" title="Fernbedienung: Pause">
+              <i class="fa-solid fa-pause"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iBad_Sonos_Lautsprecher_Fernbedienung" data-oh-command="NEXT" title="Fernbedienung: Weiter">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iBad_Sonos_Lautsprecher_Schlummern" data-oh-command="15">
+              <i class="fa-solid fa-bed"></i> 15 Min </button>
+            <button class="btn btn-sm" data-oh-item="iBad_Sonos_Lautsprecher_Schlummern" data-oh-command="30">
+              <i class="fa-solid fa-bed"></i> 30 Min </button>
+            <button class="btn btn-sm" data-oh-item="iBad_Sonos_Lautsprecher_Schlummern" data-oh-command="0">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Alarmaktivierung</span>
+              <div class="toggle-switch" data-oh-item="iBad_Sonos_Lautsprecher_Alarmaktivierung"></div>
+            </div>
+            <div class="control-row">
+              <input type="text" id="in-ibad-sonos-lautsprecher-favorit" placeholder="Favorit..." style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px; color:var(--text-main); padding:5px 8px; font-size:0.8rem;">
+              <button class="btn btn-sm" data-oh-send="iBad_Sonos_Lautsprecher_Favorit" data-oh-source="in-ibad-sonos-lautsprecher-favorit">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+            <div class="control-row">
+              <span class="data-label">LED</span>
+              <div class="toggle-switch" data-oh-item="iBad_Sonos_Lautsprecher_LED"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iBad_Sonos_Lautsprecher_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-ibad-sonos-lautsprecher-lautstaerke">
+                <span class="data-value" id="disp-ibad-sonos-lautsprecher-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Stumm</span>
+              <div class="toggle-switch" data-oh-item="iBad_Sonos_Lautsprecher_Stumm"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Wiederholen</span>
+              <div class="toggle-switch" data-oh-item="iBad_Sonos_Lautsprecher_Wiederholen" data-oh-on-value="all" data-oh-off-value="off"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Zufällig</span>
+              <div class="toggle-switch" data-oh-item="iBad_Sonos_Lautsprecher_Zufaellig"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Album</span>
+              <span class="data-value" data-oh-item="iBad_Sonos_Lautsprecher_Album">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Künstler</span>
+              <span class="data-value" data-oh-item="iBad_Sonos_Lautsprecher_Kuenstler">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Radiosender</span>
+              <span class="data-value" data-oh-item="iBad_Sonos_Lautsprecher_Radiosender">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Titel</span>
+              <span class="data-value" data-oh-item="iBad_Sonos_Lautsprecher_Titel">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iBad_Sonos_Lautsprecher_Status">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> digitalSTROM Steckdose 1
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energie</span>
+              <span class="data-value" data-oh-item="iBad_DigitalStrom_Steckdose1_Energie" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iBad_DigitalStrom_Steckdose1_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Homematic Steckdose
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Empfang</span>
+              <span class="data-value" data-oh-item="iBad_Homematic_Steckdose_Empfang" data-oh-decimals="0" data-oh-suffix=" dBm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Energiezaehler</span>
+              <span class="data-value" data-oh-item="iBad_Homematic_Steckdose_Energiezaehler" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iBad_Homematic_Steckdose_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Spannung</span>
+              <span class="data-value" data-oh-item="iBad_Homematic_Steckdose_Spannung" data-oh-decimals="1" data-oh-suffix=" V">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iBad_Homematic_Steckdose_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Strom</span>
+              <span class="data-value" data-oh-item="iBad_Homematic_Steckdose_Strom" data-oh-decimals="2" data-oh-suffix=" A">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- TAB: IOT -->
+      <div id="tab-iot" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-lightbulb"></i> Philips Hue Lampen
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iIoT_Hue_Lampen_Alarm" data-oh-command="none">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Hue_Lampen_Alarm" data-oh-command="select">
+              <i class="fa-solid fa-bolt"></i> Kurz </button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Hue_Lampen_Alarm" data-oh-command="lselect">
+              <i class="fa-solid fa-bolt"></i> Lang </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalter</span>
+              <div class="toggle-switch" data-oh-item="iIoT_Hue_Lampen_Schalter"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Helligkeit</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iIoT_Hue_Lampen_Helligkeit" data-oh-type="dimmer" data-oh-display="disp-iiot-hue-lampen-helligkeit">
+                <span class="data-value" id="disp-iiot-hue-lampen-helligkeit">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Farbtemperatur</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iIoT_Hue_Lampen_Farbtemperatur" data-oh-type="dimmer" data-oh-display="disp-iiot-hue-lampen-farbtemperatur">
+                <span class="data-value" id="disp-iiot-hue-lampen-farbtemperatur">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Farbeffekt</span>
+              <div class="toggle-switch" data-oh-item="iIoT_Hue_Lampen_Farbeffekt"></div>
+            </div>
+            <div class="colorwheel" data-oh-item="iIoT_Hue_Lampen_Farbe">
+              <div class="colorwheel-canvas-wrap">
+                <canvas class="colorwheel-canvas" width="140" height="140"></canvas>
+                <div class="colorwheel-thumb"></div>
+              </div>
+              <input type="range" class="colorwheel-brightness" min="0" max="100" value="100">
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-volume-high"></i> Sonos Lautsprecher
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iIoT_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PREVIOUS">PREVIOUS</button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iIoT_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PLAY" title="Fernbedienung: Play">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iIoT_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PAUSE" title="Fernbedienung: Pause">
+              <i class="fa-solid fa-pause"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iIoT_Sonos_Lautsprecher_Fernbedienung" data-oh-command="NEXT" title="Fernbedienung: Weiter">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Sonos_Lautsprecher_Schlummern" data-oh-command="15">
+              <i class="fa-solid fa-bed"></i> 15 Min </button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Sonos_Lautsprecher_Schlummern" data-oh-command="30">
+              <i class="fa-solid fa-bed"></i> 30 Min </button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Sonos_Lautsprecher_Schlummern" data-oh-command="0">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">LED</span>
+              <div class="toggle-switch" data-oh-item="iIoT_Sonos_Lautsprecher_LED"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iIoT_Sonos_Lautsprecher_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-iiot-sonos-lautsprecher-lautstaerke">
+                <span class="data-value" id="disp-iiot-sonos-lautsprecher-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Stumm</span>
+              <div class="toggle-switch" data-oh-item="iIoT_Sonos_Lautsprecher_Stumm"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Wiederholen</span>
+              <div class="toggle-switch" data-oh-item="iIoT_Sonos_Lautsprecher_Wiederholen" data-oh-on-value="all" data-oh-off-value="off"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Zufällig</span>
+              <div class="toggle-switch" data-oh-item="iIoT_Sonos_Lautsprecher_Zufaellig" data-oh-on-value="all" data-oh-off-value="off"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Album</span>
+              <span class="data-value" data-oh-item="iIoT_Sonos_Lautsprecher_Album">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Künstler</span>
+              <span class="data-value" data-oh-item="iIoT_Sonos_Lautsprecher_Kuenstler">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Titel</span>
+              <span class="data-value" data-oh-item="iIoT_Sonos_Lautsprecher_Titel">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-robot"></i> Neato Saugroboter
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iIoT_Neato_Saugroboter_Befehl" data-oh-command="clean">
+              <i class="fa-solid fa-broom"></i> Reinigen </button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Neato_Saugroboter_Befehl" data-oh-command="pause">
+              <i class="fa-solid fa-pause"></i> Pause </button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Neato_Saugroboter_Befehl" data-oh-command="stop">stop</button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Neato_Saugroboter_Befehl" data-oh-command="sendToBase">
+              <i class="fa-solid fa-house"></i> Zur Basis </button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Neato_Saugroboter_KategorieReinigung" data-oh-command="house">
+              <i class="fa-solid fa-house"></i> Haus </button>
+            <button class="btn btn-sm" data-oh-item="iIoT_Neato_Saugroboter_KategorieReinigung" data-oh-command="spot">
+              <i class="fa-solid fa-location-dot"></i> Fleck </button>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Aktuelle Aktion</span>
+              <span class="data-value" data-oh-item="iIoT_Neato_Saugroboter_AktuelleAktion">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Am Laden</span>
+              <span class="badge-warning" data-oh-item="iIoT_Neato_Saugroboter_AmLaden" data-oh-map="ON:Lädt,OFF:Lädt nicht" data-oh-badge-map="ON:badge-ok,OFF:badge-warning">Lädt nicht</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">An Dockstation</span>
+              <span class="badge-warning" data-oh-item="iIoT_Neato_Saugroboter_AnDockstation" data-oh-map="ON:Angedockt,OFF:Unterwegs" data-oh-badge-map="ON:badge-ok,OFF:badge-warning">Unterwegs</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Batterieladung</span>
+              <span class="data-value" data-oh-item="iIoT_Neato_Saugroboter_Batterieladung" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Fehler</span>
+              <span class="data-value" data-oh-item="iIoT_Neato_Saugroboter_Fehler">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Modus Reinigung</span>
+              <span class="data-value" data-oh-item="iIoT_Neato_Saugroboter_ModusReinigung">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iIoT_Neato_Saugroboter_Status">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-blinds"></i> digitalSTROM Jalousie
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iIoT_DigitalStrom_Jalousie_BlindPosition" data-oh-command="UP" title="Blind Position: Auf">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iIoT_DigitalStrom_Jalousie_BlindPosition" data-oh-command="STOP" title="Blind Position: Stopp">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iIoT_DigitalStrom_Jalousie_BlindPosition" data-oh-command="DOWN" title="Blind Position: Ab">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+          <div class="data-list">
+            <div class="control-row">
+              <span class="data-label">Lamellen-Orientierung:</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iIoT_DigitalStrom_Jalousie_BlindAngle" data-oh-type="dimmer" data-oh-display="disp-iiot-digitalstrom-jalousie-blindangle">
+                <span class="data-value" id="disp-iiot-digitalstrom-jalousie-blindangle">--%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> digitalSTROM Rollladen
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iIoT_DigitalStrom_Rollladen" data-oh-command="UP" title="Rollladen: Auf">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iIoT_DigitalStrom_Rollladen" data-oh-command="STOP" title="Rollladen: Stopp">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iIoT_DigitalStrom_Rollladen" data-oh-command="DOWN" title="Rollladen: Ab">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Homematic Multitouchtisch
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalten</span>
+              <div class="toggle-switch" data-oh-item="iIoT_Homematic_Multitouchtisch_Schalten"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-cloud"></i> Netatmo Wetter Außenmodul
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Abs Luftdruck</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_AbsLuftdruck" data-oh-decimals="0" data-oh-suffix=" hPa">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Laerm</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_Laerm" data-oh-decimals="0" data-oh-suffix=" dB">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftdruck</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_Luftdruck" data-oh-decimals="0" data-oh-suffix=" hPa">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftdruck Trend</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_LuftdruckTrend">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftfeuchtigkeit</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_Luftfeuchtigkeit" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Max Temperatur</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_MaxTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Min Temperatur</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_MinTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Taupunkt</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_Taupunkt" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperaturtrend</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_Temperaturtrend">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Wifi Status</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterAussenmodul_WifiStatus">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-cloud"></i> Netatmo Wetter Innenmodul
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Batterieladung</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterInnenmodul_Batterieladung" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">CO 2</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterInnenmodul_CO2" data-oh-decimals="0" data-oh-suffix=" ppm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leere Batterie</span>
+              <span class="badge-ok" data-oh-item="iIoT_Netatmo_WetterInnenmodul_LeereBatterie" data-oh-map="ON:Leer,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftfeuchtigkeit</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterInnenmodul_Luftfeuchtigkeit" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Max Temperatur</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterInnenmodul_MaxTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Min Temperatur</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterInnenmodul_MinTemperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Signalstaerke</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterInnenmodul_Signalstaerke" data-oh-decimals="0" data-oh-suffix=" dBm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Taupunkt</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterInnenmodul_Taupunkt" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterInnenmodul_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperaturtrend</span>
+              <span class="data-value" data-oh-item="iIoT_Netatmo_WetterInnenmodul_Temperaturtrend">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> digitalSTROM Steckdose 1
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energie</span>
+              <span class="data-value" data-oh-item="iIoT_DigitalStrom_Steckdose1_Energie" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iIoT_DigitalStrom_Steckdose1_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> digitalSTROM Steckdose 2
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energie</span>
+              <span class="data-value" data-oh-item="iIoT_DigitalStrom_Steckdose2_Energie" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iIoT_DigitalStrom_Steckdose2_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Homematic Raspberry
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Empfang</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_Raspberry_Empfang" data-oh-decimals="0" data-oh-suffix=" dBm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Energiezaehler</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_Raspberry_Energiezaehler" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_Raspberry_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Spannung</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_Raspberry_Spannung" data-oh-decimals="1" data-oh-suffix=" V">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_Raspberry_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Strom</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_Raspberry_Strom" data-oh-decimals="2" data-oh-suffix=" A">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Homematic USBHub
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energiezaehler</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_USBHub_Energiezaehler" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_USBHub_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Spannung</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_USBHub_Spannung" data-oh-decimals="1" data-oh-suffix=" V">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_USBHub_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Strom</span>
+              <span class="data-value" data-oh-item="iIoT_Homematic_USBHub_Strom" data-oh-decimals="2" data-oh-suffix=" A">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- TAB: MULTIMEDIA -->
+      <div id="tab-multimedia" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-lightbulb"></i> Philips Hue Lampen
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Hue_Lampen_Alarm" data-oh-command="none">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Hue_Lampen_Alarm" data-oh-command="select">
+              <i class="fa-solid fa-bolt"></i> Kurz </button>
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Hue_Lampen_Alarm" data-oh-command="lselect">
+              <i class="fa-solid fa-bolt"></i> Lang </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalter</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Hue_Lampen_Schalter"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Helligkeit</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_Hue_Lampen_Helligkeit" data-oh-type="dimmer" data-oh-display="disp-imultimedia-hue-lampen-helligkeit">
+                <span class="data-value" id="disp-imultimedia-hue-lampen-helligkeit">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Farbtemperatur</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_Hue_Lampen_Farbtemperatur" data-oh-type="dimmer" data-oh-display="disp-imultimedia-hue-lampen-farbtemperatur">
+                <span class="data-value" id="disp-imultimedia-hue-lampen-farbtemperatur">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Farbeffekt</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Hue_Lampen_Farbeffekt"></div>
+            </div>
+            <div class="colorwheel" data-oh-item="iMultimedia_Hue_Lampen_Farbe">
+              <div class="colorwheel-canvas-wrap">
+                <canvas class="colorwheel-canvas" width="140" height="140"></canvas>
+                <div class="colorwheel-thumb"></div>
+              </div>
+              <input type="range" class="colorwheel-brightness" min="0" max="100" value="100">
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Rauchmelder
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Alarm Hitze</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Rauchmelder_AlarmHitze" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm Rauch</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Rauchmelder_AlarmRauch" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm Hitze</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Rauchmelder_AlarmHitze" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm Rauch</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Rauchmelder_AlarmRauch" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Batterie</span>
+              <span class="data-value" data-oh-item="iMultimedia_Fibaro_Rauchmelder_Batterie" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Türsensor
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Alarm CO 2</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Tuersensor_AlarmCO2" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm Rauch</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Tuersensor_AlarmRauch" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Kontakt 1</span>
+              <span class="data-value" data-oh-item="iMultimedia_Fibaro_Tuersensor_Kontakt1">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm CO 2</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Tuersensor_AlarmCO2" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Alarm Rauch</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Tuersensor_AlarmRauch" data-oh-map="ON:Alarm!,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Kontakt 1</span>
+              <span class="data-value" data-oh-item="iMultimedia_Fibaro_Tuersensor_Kontakt1">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Schaltglas
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schaltglas 1</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Homematic_Schaltglas1_Schalten"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Schaltglas 2</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Homematic_Schaltglas2_Schalten"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-tv"></i> Smart TV
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <input type="text" id="in-imultimedia-smarttv-key-code" placeholder="Key Code..." style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px; color:var(--text-main); padding:5px 8px; font-size:0.8rem;">
+              <button class="btn btn-sm" data-oh-send="iMultimedia_SmartTV_Key_Code" data-oh-source="in-imultimedia-smarttv-key-code">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Mute</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_SmartTV_Mute"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Power</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_SmartTV_Power"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Volume</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_SmartTV_Volume" data-oh-type="dimmer" data-oh-display="disp-imultimedia-smarttv-volume">
+                <span class="data-value" id="disp-imultimedia-smarttv-volume">--%</span>
+              </div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Program Name</span>
+              <span class="data-value" data-oh-item="iMultimedia_SmartTV_Program_Name">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Program Title</span>
+              <span class="data-value" data-oh-item="iMultimedia_SmartTV_Program_Title">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Source Name</span>
+              <span class="data-value" data-oh-item="iMultimedia_SmartTV_Source_Name">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card wide">
+          <div class="card-title">
+            <i class="fa-solid fa-photo-film"></i> Kodi
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Kodi_Fernbedienung" data-oh-command="PREVIOUS">PREVIOUS</button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Kodi_Fernbedienung" data-oh-command="PLAY" title="Fernbedienung: Play">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Kodi_Fernbedienung" data-oh-command="PAUSE" title="Fernbedienung: Pause">
+              <i class="fa-solid fa-pause"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Kodi_Fernbedienung" data-oh-command="NEXT" title="Fernbedienung: Weiter">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Kodi_Stop" data-oh-command="ON" title="Stopp">
+              <i class="fa-solid fa-stop"></i>
+            </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_Kodi_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-imultimedia-kodi-lautstaerke">
+                <span class="data-value" id="disp-imultimedia-kodi-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Stumm</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Kodi_Stumm"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Album</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_Album">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Audio Codec</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_AudioCodec">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Dauer</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_Dauer">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Künstler</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_Kuenstler">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Laufzeit</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_Laufzeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Laufzeit Prozent</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_LaufzeitProzent" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Medientyp</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_Medientyp">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">PVRTVKanal</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_PVRTVKanal">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Showtitel</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_Showtitel">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Titel</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_Titel">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Video Codec</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_VideoCodec">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Vorschau</span>
+              <span class="data-value" data-oh-item="iMultimedia_Kodi_Vorschau">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-photo-film"></i> Multimediabox Kodi
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalter</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Multimediabox_Kodi_Schalter"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-box"></i> Multimediabox
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Schalter</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Multimediabox_Schalter"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Reaktionszeit</span>
+              <span class="data-value" data-oh-item="iMultimedia_Multimediabox_Reaktionszeit" data-oh-decimals="0" data-oh-suffix=" ms">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-gamepad"></i> PS4
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Power</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_PS4_Power"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Application</span>
+              <span class="data-value" data-oh-item="iMultimedia_PS4_Application">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-gamepad"></i> Xbox 360
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Xbox_Schalter" data-oh-command="ON">
+              <i class="fa-solid fa-power-off"></i> Schalter </button>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">State</span>
+              <span class="data-value" data-oh-item="iMultimedia_Xbox_Online_State">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Last Seen</span>
+              <span class="data-value" data-oh-item="iMultimedia_Xbox_LastSeen">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Response Time</span>
+              <span class="data-value" data-oh-item="iMultimedia_Xbox_ResponseTime" data-oh-decimals="0" data-oh-suffix=" ms">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card wide">
+          <div class="card-title">
+            <i class="fa-solid fa-volume-high"></i> Sonos Lautsprecher
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PREVIOUS">PREVIOUS</button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PLAY" title="Fernbedienung: Play">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Sonos_Lautsprecher_Fernbedienung" data-oh-command="PAUSE" title="Fernbedienung: Pause">
+              <i class="fa-solid fa-pause"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Sonos_Lautsprecher_Fernbedienung" data-oh-command="NEXT" title="Fernbedienung: Weiter">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Sonos_Lautsprecher_Schlummern" data-oh-command="15">
+              <i class="fa-solid fa-bed"></i> 15 Min </button>
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Sonos_Lautsprecher_Schlummern" data-oh-command="30">
+              <i class="fa-solid fa-bed"></i> 30 Min </button>
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Sonos_Lautsprecher_Schlummern" data-oh-command="0">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">LED</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Sonos_Lautsprecher_LED"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_Sonos_Lautsprecher_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-imultimedia-sonos-lautsprecher-lautstaerke">
+                <span class="data-value" id="disp-imultimedia-sonos-lautsprecher-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Stumm</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Sonos_Lautsprecher_Stumm"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Wiederholen</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Sonos_Lautsprecher_Wiederholen" data-oh-on-value="all" data-oh-off-value="off"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Zufällig</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Sonos_Lautsprecher_Zufaellig"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Album</span>
+              <span class="data-value" data-oh-item="iMultimedia_Sonos_Lautsprecher_Album">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Künstler</span>
+              <span class="data-value" data-oh-item="iMultimedia_Sonos_Lautsprecher_Kuenstler">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Titel</span>
+              <span class="data-value" data-oh-item="iMultimedia_Sonos_Lautsprecher_Titel">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card wide">
+          <div class="card-title">
+            <i class="fa-solid fa-volume-high"></i> Sonos Playbar
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Sonos_Playbar_Fernbedienung" data-oh-command="PREVIOUS">PREVIOUS</button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Sonos_Playbar_Fernbedienung" data-oh-command="PLAY" title="Fernbedienung: Play">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Sonos_Playbar_Fernbedienung" data-oh-command="PAUSE" title="Fernbedienung: Pause">
+              <i class="fa-solid fa-pause"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Sonos_Playbar_Fernbedienung" data-oh-command="NEXT" title="Fernbedienung: Weiter">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Sonos_Playbar_Schlummern" data-oh-command="15">
+              <i class="fa-solid fa-bed"></i> 15 Min </button>
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Sonos_Playbar_Schlummern" data-oh-command="30">
+              <i class="fa-solid fa-bed"></i> 30 Min </button>
+            <button class="btn btn-sm" data-oh-item="iMultimedia_Sonos_Playbar_Schlummern" data-oh-command="0">
+              <i class="fa-solid fa-ban"></i> Aus </button>
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">LED</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Sonos_Playbar_LED"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_Sonos_Playbar_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-imultimedia-sonos-playbar-lautstaerke">
+                <span class="data-value" id="disp-imultimedia-sonos-playbar-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Stumm</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Sonos_Playbar_Stumm"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Wiederholen</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Sonos_Playbar_Wiederholen" data-oh-on-value="all" data-oh-off-value="off"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Zufällig</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Sonos_Playbar_Zufaellig"></div>
+            </div>
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Künstler</span>
+              <span class="data-value" data-oh-item="iMultimedia_Sonos_Playbar_Kuenstler">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" data-oh-item="iMultimedia_Sonos_Playbar_Status">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Titel</span>
+              <span class="data-value" data-oh-item="iMultimedia_Sonos_Playbar_Titel">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-volume-high"></i> Sonos Subwoofer
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_Sonos_Subwoofer_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-imultimedia-sonos-subwoofer-lautstaerke">
+                <span class="data-value" id="disp-imultimedia-sonos-subwoofer-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">Stumm</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Sonos_Subwoofer_Stumm"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-microchip"></i> Virtueller Wecker
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Wecker</span>
+              <div class="toggle-switch" data-oh-item="iMultimedia_Virt_Wecker"></div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">H</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_Virt_Wecker_H" data-oh-type="dimmer" data-oh-display="disp-imultimedia-virt-wecker-h">
+                <span class="data-value" id="disp-imultimedia-virt-wecker-h">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <span class="data-label">M</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_Virt_Wecker_M" data-oh-type="dimmer" data-oh-display="disp-imultimedia-virt-wecker-m">
+                <span class="data-value" id="disp-imultimedia-virt-wecker-m">--%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-microchip"></i> Voice RSS TTS
+          </div>
+          <div class="data-list" style="gap:8px;">
+            <div class="control-row">
+              <span class="data-label">Lautstaerke</span>
+              <div class="slider-container">
+                <input type="range" min="0" max="100" value="0" data-oh-item="iMultimedia_VoiceRSS_TTS_Lautstaerke" data-oh-type="dimmer" data-oh-display="disp-imultimedia-voicerss-tts-lautstaerke">
+                <span class="data-value" id="disp-imultimedia-voicerss-tts-lautstaerke">--%</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <input type="text" id="in-imultimedia-voicerss-tts-text" placeholder="Text..." style="flex:1; background:rgba(0,0,0,0.2); border:1px solid var(--card-border); border-radius:6px; color:var(--text-main); padding:5px 8px; font-size:0.8rem;">
+              <button class="btn btn-sm" data-oh-send="iMultimedia_VoiceRSS_TTS_Text" data-oh-source="in-imultimedia-voicerss-tts-text">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-blinds-raised"></i> Somfy Rollladen
+          </div>
+          <div class="transport-row" style="margin-bottom:6px;">
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Somfy_Rollladen_Steuerung" data-oh-command="UP" title="Steuerung: Auf">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Somfy_Rollladen_Steuerung" data-oh-command="STOP" title="Steuerung: Stopp">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <button class="btn btn-icon-round btn-sm" data-oh-item="iMultimedia_Somfy_Rollladen_Steuerung" data-oh-command="DOWN" title="Steuerung: Ab">
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Bewegungsmelder 1
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Batteriestatus</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Bewegungsmelder1_Batteriestatus" data-oh-map="ON:Schwach,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Bewegungsalarm</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Bewegungsmelder1_Bewegungsalarm" data-oh-map="ON:Bewegung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Helligkeit</span>
+              <span class="data-value" data-oh-item="iMultimedia_Fibaro_Bewegungsmelder1_Helligkeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iMultimedia_Fibaro_Bewegungsmelder1_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-satellite-dish"></i> Fibaro Bewegungsmelder 2
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Batteriestatus</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Bewegungsmelder2_Batteriestatus" data-oh-map="ON:Schwach,OFF:OK" data-oh-badge-map="ON:badge-alert,OFF:badge-ok">OK</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Bewegungsalarm</span>
+              <span class="badge-ok" data-oh-item="iMultimedia_Fibaro_Bewegungsmelder2_Bewegungsalarm" data-oh-map="ON:Bewegung,OFF:Ruhe" data-oh-badge-map="ON:badge-warning,OFF:badge-ok">Ruhe</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Helligkeit</span>
+              <span class="data-value" data-oh-item="iMultimedia_Fibaro_Bewegungsmelder2_Helligkeit">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iMultimedia_Fibaro_Bewegungsmelder2_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-cloud"></i> Netatmo Wetter Innenmodul
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">CO 2</span>
+              <span class="data-value" data-oh-item="iMultimedia_Netatmo_WetterInnenmodul_CO2" data-oh-decimals="0" data-oh-suffix=" ppm">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Luftfeuchtigkeit</span>
+              <span class="data-value" data-oh-item="iMultimedia_Netatmo_WetterInnenmodul_Luftfeuchtigkeit" data-oh-decimals="0" data-oh-suffix=" %">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperatur</span>
+              <span class="data-value" data-oh-item="iMultimedia_Netatmo_WetterInnenmodul_Temperatur" data-oh-decimals="1" data-oh-suffix=" °C">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Temperaturtrend</span>
+              <span class="data-value" data-oh-item="iMultimedia_Netatmo_WetterInnenmodul_Temperaturtrend">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> digitalSTROM Steckdose
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energie</span>
+              <span class="data-value" data-oh-item="iMultimedia_DigitalStrom_Steckdose_Energie" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iMultimedia_DigitalStrom_Steckdose_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-photo-film"></i> Homematic Kodi
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energiezaehler</span>
+              <span class="data-value" data-oh-item="iMultimedia_Homematic_Kodi_Energiezaehler" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iMultimedia_Homematic_Kodi_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Spannung</span>
+              <span class="data-value" data-oh-item="iMultimedia_Homematic_Kodi_Spannung" data-oh-decimals="1" data-oh-suffix=" V">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Strom</span>
+              <span class="data-value" data-oh-item="iMultimedia_Homematic_Kodi_Strom" data-oh-decimals="2" data-oh-suffix=" A">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <i class="fa-solid fa-plug"></i> Homematic TVSchalter
+          </div>
+          <div class="data-list">
+            <div class="data-row">
+              <span class="data-label">Energiezaehler</span>
+              <span class="data-value" data-oh-item="iMultimedia_Homematic_TVSchalter_Energiezaehler" data-oh-decimals="2" data-oh-suffix=" kWh">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Leistung</span>
+              <span class="data-value" data-oh-item="iMultimedia_Homematic_TVSchalter_Leistung" data-oh-decimals="1" data-oh-suffix=" W">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Spannung</span>
+              <span class="data-value" data-oh-item="iMultimedia_Homematic_TVSchalter_Spannung" data-oh-decimals="1" data-oh-suffix=" V">--</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Strom</span>
+              <span class="data-value" data-oh-item="iMultimedia_Homematic_TVSchalter_Strom" data-oh-decimals="2" data-oh-suffix=" A">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Toast-Benachrichtigung (Bootstrap) für Befehls-Feedback -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+      <div id="oh-toast" class="toast align-items-center text-bg-dark border-0" role="status" aria-live="polite" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body" id="oh-toast-body">Befehl gesendet</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    </div>
+    <!-- Bootstrap Bundle (nur für Toast/Offcanvas/Dropdown-Komponenten) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+    <!-- Verbindungseinstellungen zu deiner openHAB-Instanz -->
+    <script src="config.js"></script>
+    <!-- js-openhab-rest-client: Zustände lesen & Befehle senden -->
+    <script src="openhab.js"></script>
+    <!-- Model: OHItem (Observable) + ItemStore -->
+    <script src="model.js"></script>
+    <!-- View: Kiosk/Tabs/Uhr, DOM-Bindung an Model-Items, Farbkreis -->
+    <script src="app.js"></script>
+    <!-- Controller: verdrahtet Model+View, SSE-Live-Updates -->
+    <script src="controller.js"></script>
+  </body>
+</html>
